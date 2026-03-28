@@ -33,6 +33,34 @@ const sectionStyle = {
   border: '1px solid var(--border)',
   borderRadius: '10px', padding: '16px',
 };
+const AttachmentsList = ({ emailId }) => {
+  const [atts, setAtts] = useState([]);
+  useEffect(() => {
+    if (!emailId) return;
+    api.get(`/emails/${emailId}/attachments`).then(r => setAtts(r.data)).catch(() => {});
+  }, [emailId]);
+  if (!atts.length) return null;
+  return (
+    <div style={{ marginTop: '10px' }}>
+      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace', letterSpacing: '0.8px', marginBottom: '6px' }}>ATTACHMENTS</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        {atts.map(att => (
+          <a key={att.id} href={`http://127.0.0.1:8000/emails/attachments/${att.id}/download`}
+            target="_blank" rel="noreferrer"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'var(--bg-primary)', border: '1px solid var(--border)',
+              borderRadius: '6px', padding: '5px 10px',
+              fontSize: '11px', color: 'var(--gold)',
+              textDecoration: 'none', fontFamily: 'DM Mono, monospace',
+            }}>
+            📎 {att.filename}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const TaskDetailModal = ({ taskId, onClose, onUpdated }) => {
   const [detail, setDetail] = useState(null);
@@ -204,6 +232,7 @@ const TaskDetailModal = ({ taskId, onClose, onUpdated }) => {
                 }}>
                   {detail?.email?.body}
                 </div>
+                <AttachmentsList emailId={detail?.task?.email_id} />
               </div>
 
               {/* Schedule */}

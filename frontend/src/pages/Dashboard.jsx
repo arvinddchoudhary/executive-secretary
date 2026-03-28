@@ -90,7 +90,11 @@ const Dashboard = () => {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadTasks(); }, [loadTasks]);
+  useEffect(() => {
+  loadTasks();
+  const interval = setInterval(loadTasks, 30000);
+  return () => clearInterval(interval);
+  }, [loadTasks]);
 
   const updateTask = async (id, status) => {
     try {

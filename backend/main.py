@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from models.database import engine, Base
 from routes import emails, tasks, schedules, auth, settings
+from services.poller_service import start_scheduler, stop_scheduler
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +27,11 @@ app.include_router(settings.router, prefix="/settings", tags=["Settings"])
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    start_scheduler()
+
+@app.on_event("shutdown")
+async def shutdown():
+    stop_scheduler()
 
 @app.get("/")
 async def root():

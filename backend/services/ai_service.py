@@ -16,31 +16,36 @@ def process_email(sender: str, subject: str, body: str) -> dict:
     clean_body = strip_html(body)
 
     prompt = f"""
-You are an AI assistant for an executive. Analyze the following email and return a JSON object only.
+You are an AI assistant for a busy executive. Analyze this email and decide if it requires action.
 
 Email:
 Sender: {sender}
 Subject: {subject}
 Body: {clean_body}
 
-Return this exact JSON structure with no extra text:
+STRICT RULES:
+- If this is a promotional email, newsletter, advertisement, discount offer, app download request, reward/offer email, or any marketing content → return empty tasks array
+- If this is a notification from a service (bank alert, OTP, delivery update) with no human action needed → return empty tasks array
+- Only create tasks for emails that require a real human business action: meetings, approvals, document reviews, follow-ups from real people
+- For meeting emails: extract the EXACT requested date and time if mentioned. If a specific time is mentioned (e.g. "meeting at 11am"), set requested_datetime to that value
+- meet_link: extract any Google Meet, Zoom, Teams link from the body, or null
+
+Return ONLY this JSON, no markdown, no explanation:
 {{
-  "summary": "2-3 sentence summary of the email",
+  "summary": "2-3 sentence summary, or 'No action required' if promotional",
+  "is_actionable": true or false,
+  "meet_link": "full URL or null",
+  "requested_datetime": "ISO format datetime if specific time mentioned in email, else null",
   "tasks": [
     {{
       "title": "short task title",
       "description": "what needs to be done",
       "priority": "high or medium or low",
-      "estimated_minutes": 30
+      "estimated_minutes": 30,
+      "task_type": "meeting or review or approval or followup or report or other"
     }}
   ]
 }}
-
-Rules:
-- priority must be exactly: high, medium, or low
-- estimated_minutes must be an integer
-- If no tasks exist, return an empty tasks array
-- Return JSON only, no markdown, no explanation
 """
 
     response = client.chat.completions.create(
@@ -58,5 +63,8 @@ Rules:
         start = raw.find("{")
         end = raw.rfind("}") + 1
         result = json.loads(raw[start:end])
+
+    if not result.get("is_actionable", True):
+        result["tasks"] = []
 
     return result

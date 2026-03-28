@@ -3,6 +3,8 @@ import email
 from email.header import decode_header
 from dotenv import load_dotenv
 import os
+import base64
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -21,32 +23,65 @@ def decode_str(value):
         return value.decode("utf-8", errors="ignore")
     return value
 
-def fetch_unread_emails():
+def fetch_unread_emails(limit=5):
     try:
         mail = connect_imap()
         mail.select("inbox")
 
-        _, message_numbers = mail.search(None, "UNSEEN")
+        from datetime import datetime, timedelta
+        since_date = (datetime.now() - timedelta(days=1)).strftime("%d-%b-%Y")
+        _, message_numbers = mail.search(None, f'(UNSEEN SINCE {since_date})')
+
+        nums = message_numbers[0].split()
+        nums = nums[-limit:]
+
+        # Skip known promotional domains before even fetching full email
+        skip_domains = [
+            'noreply@', 'no-reply@', 'newsletter@', 'mailer.',
+            'notifications@', 'digest@', 'donotreply@',
+            'info@join.', 'alerts@', 'update@', 'email.hm.com',
+            'leetcode.com', 'quora.com', 'linkedin.com',
+            'internshala.com', 'indeed.com', 'groww.in',
+            'netflix.com', 'jio.com', 'naukri.com'
+        ]
+
         email_list = []
 
-        for num in message_numbers[0].split():
+        for num in nums:
             _, msg_data = mail.fetch(num, "(RFC822)")
             raw_email = msg_data[0][1]
             msg = email.message_from_bytes(raw_email)
 
-            subject, encoding = decode_header(msg["Subject"])[0]
-            subject = decode_str(subject)
-
+            subject_raw, encoding = decode_header(msg["Subject"])[0]
+            subject = decode_str(subject_raw)
             sender = msg.get("From", "")
 
+            sender_lower = sender.lower()
+            if any(domain in sender_lower for domain in skip_domains):
+                mail.store(num, "+FLAGS", "\\Seen")
+                continue
+
             body = ""
+            attachments = []
+
             if msg.is_multipart():
                 for part in msg.walk():
                     content_type = part.get_content_type()
-                    if content_type == "text/plain":
+                    disposition = str(part.get("Content-Disposition", ""))
+                    if "attachment" in disposition:
+                        filename = part.get_filename()
+                        if filename:
+                            file_data = base64.b64encode(
+                                part.get_payload(decode=True)
+                            ).decode("utf-8")
+                            attachments.append({
+                                "filename": filename,
+                                "content_type": content_type,
+                                "file_data": file_data,
+                            })
+                    elif content_type == "text/plain" and "attachment" not in disposition:
                         body = decode_str(part.get_payload(decode=True))
-                        break
-                    elif content_type == "text/html":
+                    elif content_type == "text/html" and not body:
                         body = decode_str(part.get_payload(decode=True))
             else:
                 body = decode_str(msg.get_payload(decode=True))
@@ -54,7 +89,8 @@ def fetch_unread_emails():
             email_list.append({
                 "sender": sender,
                 "subject": subject,
-                "body": body
+                "body": body,
+                "attachments": attachments,
             })
 
             mail.store(num, "+FLAGS", "\\Seen")

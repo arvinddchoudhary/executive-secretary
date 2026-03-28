@@ -36,6 +36,7 @@ class Email(Base):
     sender = Column(String(150))
     subject = Column(String(300))
     body = Column(Text)
+    meet_link = Column(String(500), nullable=True)
     received_at = Column(DateTime, default=datetime.utcnow)
     processed = Column(Boolean, default=False)
 
@@ -52,6 +53,8 @@ class Task(Base):
     priority = Column(Enum(PriorityEnum), default=PriorityEnum.medium)
     status = Column(Enum(StatusEnum), default=StatusEnum.pending)
     estimated_minutes = Column(Integer, default=30)
+    requested_datetime = Column(DateTime, nullable=True)
+    task_type = Column(String(50), default="other")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     email = relationship("Email", back_populates="tasks")
@@ -67,6 +70,9 @@ class Schedule(Base):
     start_time = Column(DateTime)
     end_time = Column(DateTime)
     calendar_event_id = Column(String(200), nullable=True)
+    google_event_id = Column(String(200), nullable=True)
+    meet_link = Column(String(500), nullable=True)
+    html_link = Column(String(500), nullable=True)
     is_rescheduled = Column(Boolean, default=False)
 
     task = relationship("Task", back_populates="schedule")
@@ -96,3 +102,15 @@ class UserSettings(Base):
     slot_interval_minutes = Column(Integer, default=30)
 
     user = relationship("User", backref="settings")
+
+class Attachment(Base):
+    __tablename__ = "attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email_id = Column(Integer, ForeignKey("emails.id"))
+    filename = Column(String(300))
+    content_type = Column(String(100))
+    file_data = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    email = relationship("Email", backref="attachments")

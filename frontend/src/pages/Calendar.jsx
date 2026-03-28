@@ -34,7 +34,9 @@ const Calendar = () => {
         const taskMap = {};
         taskRes.data.forEach(t => { taskMap[t.id] = t; });
         setTasks(taskMap);
-      } catch (e) { console.error(e); }
+      } catch (e) { 
+        console.error("Error fetching data:", e); 
+      }
       setLoading(false);
     };
     load();
@@ -71,7 +73,7 @@ const Calendar = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
           <div>
             <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>Schedule View</h1>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Approved tasks auto-scheduled by AI</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Approved tasks auto-scheduled by SecretaryAI</p>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button onClick={() => setWeekOffset(w => w - 1)} style={navBtn}>← Prev</button>
@@ -102,7 +104,7 @@ const Calendar = () => {
               })}
             </div>
             {HOURS.map(hour => (
-              <div key={hour} style={{ display: 'grid', gridTemplateColumns: '64px repeat(5, 1fr)', borderBottom: '1px solid var(--border)', minHeight: '64px' }}>
+              <div key={hour} style={{ display: 'grid', gridTemplateColumns: '64px repeat(5, 1fr)', borderBottom: '1px solid var(--border)', minHeight: '80px' }}>
                 <div style={{ padding: '10px 12px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace', textAlign: 'right', borderRight: '1px solid var(--border)' }}>{hour}:00</div>
                 {weekDates.map((date, di) => {
                   const slotSchedules = getSchedulesForSlot(date, hour);
@@ -113,27 +115,48 @@ const Calendar = () => {
                         const task = tasks[s.task_id];
                         const color = priorityColors[task?.priority || 'medium'];
                         return (
-  <div key={s.id} style={{
-    background: `${color}15`, border: `1px solid ${color}40`,
-    borderLeft: `3px solid ${color}`, borderRadius: '6px',
-    padding: '6px 8px', marginBottom: '2px', cursor: 'pointer',
-    transition: 'background 0.15s',
-  }}
-    onClick={() => setRescheduleTarget({ taskId: s.task_id, taskTitle: task?.title || `Task #${s.task_id}`, start: s.start_time, end: s.end_time })}
-    onMouseEnter={e => e.currentTarget.style.background = `${color}25`}
-    onMouseLeave={e => e.currentTarget.style.background = `${color}15`}
-  >
-    <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-      {task?.title || `Task #${s.task_id}`}
-    </div>
-    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace' }}>
-      {new Date(s.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(s.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-    </div>
-    <div style={{ fontSize: '10px', color: color, marginTop: '2px', fontFamily: 'DM Mono, monospace' }}>
-      click to reschedule
-    </div>
-  </div>
-);
+                          <div key={s.id} style={{
+                            background: `${color}15`, border: `1px solid ${color}40`,
+                            borderLeft: `3px solid ${color}`, borderRadius: '6px',
+                            padding: '6px 8px', marginBottom: '4px', cursor: 'pointer',
+                            transition: 'background 0.15s',
+                          }}
+                            onClick={() => setRescheduleTarget({ taskId: s.task_id, taskTitle: task?.title || `Task #${s.task_id}`, start: s.start_time, end: s.end_time })}
+                            onMouseEnter={e => e.currentTarget.style.background = `${color}25`}
+                            onMouseLeave={e => e.currentTarget.style.background = `${color}15`}
+                          >
+                            <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {task?.title || `Task #${s.task_id}`}
+                            </div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace' }}>
+                              {new Date(s.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(s.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                            
+                            {/* Actions Area */}
+                            <div style={{ marginTop: '4px' }}>
+                                {s.meet_link && (
+                                    <a href={s.meet_link} target="_blank" rel="noreferrer" 
+                                       onClick={e => e.stopPropagation()} 
+                                       style={{
+                                         fontSize: '10px', color: 'var(--green)', fontFamily: 'DM Mono, monospace',
+                                         textDecoration: 'none', display: 'block', fontWeight: 'bold'
+                                       }}>
+                                      ▶ Join Meet
+                                    </a>
+                                )}
+                                {s.html_link && (
+                                    <a href={s.html_link} target="_blank" rel="noreferrer" 
+                                       onClick={e => e.stopPropagation()} 
+                                       style={{
+                                         fontSize: '10px', color: 'var(--blue)', fontFamily: 'DM Mono, monospace',
+                                         textDecoration: 'none', display: 'block', marginTop: '2px'
+                                       }}>
+                                      📅 Open Calendar
+                                    </a>
+                                )}
+                            </div>
+                          </div>
+                        );
                       })}
                     </div>
                   );
@@ -152,26 +175,27 @@ const Calendar = () => {
           ))}
         </div>
       </div>
+
       {rescheduleTarget && (
-  <RescheduleModal
-    taskId={rescheduleTarget.taskId}
-    taskTitle={rescheduleTarget.taskTitle}
-    currentStart={rescheduleTarget.start}
-    currentEnd={rescheduleTarget.end}
-    onClose={() => setRescheduleTarget(null)}
-    onRescheduled={() => {
-      setRescheduleTarget(null);
-      const load = async () => {
-        const [schedRes, taskRes] = await Promise.all([api.get('/schedules/'), api.get('/tasks/')]);
-        setSchedules(schedRes.data);
-        const taskMap = {};
-        taskRes.data.forEach(t => { taskMap[t.id] = t; });
-        setTasks(taskMap);
-      };
-      load();
-    }}
-  />
-)}
+        <RescheduleModal
+          taskId={rescheduleTarget.taskId}
+          taskTitle={rescheduleTarget.taskTitle}
+          currentStart={rescheduleTarget.start}
+          currentEnd={rescheduleTarget.end}
+          onClose={() => setRescheduleTarget(null)}
+          onRescheduled={() => {
+            setRescheduleTarget(null);
+            const load = async () => {
+              const [schedRes, taskRes] = await Promise.all([api.get('/schedules/'), api.get('/tasks/')]);
+              setSchedules(schedRes.data);
+              const taskMap = {};
+              taskRes.data.forEach(t => { taskMap[t.id] = t; });
+              setTasks(taskMap);
+            };
+            load();
+          }}
+        />
+      )}
     </div>
   );
 };

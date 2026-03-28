@@ -1,21 +1,42 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models.orm_models import Email, Task
+from models.orm_models import Email, Task, Attachment
 from models.schemas import PriorityEnum
 from services.ai_service import process_email
+from datetime import datetime
 
-async def run_email_agent(sender: str, subject: str, body: str, db: AsyncSession):
+async def run_email_agent(sender: str, subject: str, body: str, db: AsyncSession, attachments: list = None):
+
+    ai_result = process_email(sender, subject, body)
+
+    if not ai_result.get("is_actionable", False) or not ai_result.get("tasks"):
+        return {
+            "email_id": None,
+            "summary": "Not actionable — skipped",
+            "tasks_created": 0
+        }
+
     email_record = Email(
         sender=sender,
         subject=subject,
         body=body,
-        processed=False
+        processed=False,
+        meet_link=ai_result.get("meet_link")
     )
     db.add(email_record)
     await db.commit()
     await db.refresh(email_record)
 
-    ai_result = process_email(sender, subject, body)
+    if attachments:
+        for att in attachments:
+            attachment = Attachment(
+                email_id=email_record.id,
+                filename=att["filename"],
+                content_type=att["content_type"],
+                file_data=att["file_data"],
+            )
+            db.add(attachment)
+        await db.commit()
 
     tasks_created = []
 
@@ -35,12 +56,22 @@ async def run_email_agent(sender: str, subject: str, body: str, db: AsyncSession
         if priority_raw not in ["high", "medium", "low"]:
             priority_raw = "medium"
 
+        requested_dt = None
+        raw_dt = ai_result.get("requested_datetime")
+        if raw_dt:
+            try:
+                requested_dt = datetime.fromisoformat(raw_dt)
+            except Exception:
+                requested_dt = None
+
         task = Task(
             email_id=email_record.id,
             title=title,
             description=task_data.get("description", ""),
             priority=PriorityEnum(priority_raw),
-            estimated_minutes=task_data.get("estimated_minutes", 30)
+            estimated_minutes=task_data.get("estimated_minutes", 30),
+            task_type=task_data.get("task_type", "other"),
+            requested_datetime=requested_dt
         )
         db.add(task)
         tasks_created.append(task)

@@ -85,6 +85,9 @@ class ScheduleOut(BaseModel):
     start_time: datetime
     end_time: datetime
     calendar_event_id: Optional[str]
+    google_event_id: Optional[str]
+    meet_link: Optional[str]
+    html_link: Optional[str]
     is_rescheduled: bool
 
     class Config:
@@ -118,6 +121,16 @@ class UserSettingsOut(BaseModel):
     lunch_start: Optional[int]
     lunch_end: Optional[int]
     slot_interval_minutes: int
+
+    class Config:
+        from_attributes = True
+
+class AttachmentOut(BaseModel):
+    id: int
+    email_id: int
+    filename: str
+    content_type: str
+    created_at: datetime
 
     class Config:
         from_attributes = True
