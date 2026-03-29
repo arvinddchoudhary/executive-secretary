@@ -9,6 +9,8 @@ from jose import jwt
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import os
+from fastapi.security import OAuth2PasswordBearer
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 load_dotenv()
 
@@ -59,3 +61,22 @@ async def login(user: UserCreate, db: AsyncSession = Depends(get_db)):
 
     token = create_token({"sub": db_user.email, "role": db_user.role})
     return {"access_token": token, "token_type": "bearer"}
+
+async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        email = payload.get("sub")
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def require_role(role: str):
+    async def role_checker(current_user=Depends(get_current_user)):
+        if current_user.role != role and current_user.role != "admin":
+            raise HTTPException(status_code=403, detail=f"Requires {role} role")
+        return current_user
+    return role_checker

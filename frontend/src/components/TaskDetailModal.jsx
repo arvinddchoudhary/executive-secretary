@@ -217,6 +217,14 @@ const TaskDetailModal = ({ taskId, onClose, onUpdated }) => {
                     {detail?.email?.sender}
                   </span>
                 </div>
+                {detail?.email?.sender_timezone && (
+                <div style={{ marginBottom: '8px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Timezone: </span>
+                  <span style={{ fontSize: '12px', color: 'var(--blue)', fontFamily: 'DM Mono, monospace' }}>
+                    {detail.email.sender_timezone}
+                  </span>
+                </div>
+            )}
                 <div style={{ marginBottom: '10px' }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Subject: </span>
                   <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>

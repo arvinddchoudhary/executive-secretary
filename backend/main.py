@@ -3,8 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from models.database import engine, Base
 from routes import emails, tasks, schedules, auth, settings
 from services.poller_service import start_scheduler, stop_scheduler
+from services.reminder_service import send_pending_reminders
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
-
+scheduler = AsyncIOScheduler()
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="AI Executive Secretary")
@@ -28,10 +30,13 @@ async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     start_scheduler()
+    scheduler.add_job(send_pending_reminders, "interval", minutes=30, id="reminder_job", replace_existing=True)
+    scheduler.start()
 
 @app.on_event("shutdown")
 async def shutdown():
     stop_scheduler()
+    scheduler.shutdown()
 
 @app.get("/")
 async def root():

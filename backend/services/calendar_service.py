@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models.orm_models import Schedule, UserSettings
+import holidays
 
 async def get_user_settings(db: AsyncSession, user_id: int = None):
     if user_id:
@@ -22,7 +23,7 @@ async def get_user_settings(db: AsyncSession, user_id: int = None):
         slot_interval_minutes = 30
     return DefaultSettings()
 
-def is_working_time(dt: datetime, settings) -> bool:
+def is_working_time(dt: datetime, settings, country: str = "IN") -> bool:
     work_days = [int(d) for d in settings.work_days.split(",")]
     if dt.isoweekday() not in work_days:
         return False
@@ -31,6 +32,9 @@ def is_working_time(dt: datetime, settings) -> bool:
     if settings.lunch_start and settings.lunch_end:
         if settings.lunch_start <= dt.hour < settings.lunch_end:
             return False
+    country_holidays = holidays.country_holidays(country, years=dt.year)
+    if dt.date() in country_holidays:
+        return False
     return True
 
 def next_working_slot(from_dt: datetime, settings) -> datetime:
@@ -59,6 +63,7 @@ async def find_free_slot(estimated_minutes: int, db: AsyncSession, user_id: int 
     settings = await get_user_settings(db, user_id)
     start_search = next_working_slot(datetime.utcnow(), settings)
     duration = timedelta(minutes=estimated_minutes)
+    buffer = timedelta(minutes=getattr(settings, 'buffer_minutes', 10))
 
     result = await db.execute(select(Schedule))
     existing_schedules = result.scalars().all()
@@ -75,9 +80,11 @@ async def find_free_slot(estimated_minutes: int, db: AsyncSession, user_id: int 
 
         conflict = False
         for schedule in existing_schedules:
-            if candidate_start < schedule.end_time and candidate_end > schedule.start_time:
+            buffered_start = schedule.start_time - buffer
+            buffered_end = schedule.end_time + buffer
+            if candidate_start < buffered_end and candidate_end > buffered_start:
                 conflict = True
-                candidate_start = next_working_slot(schedule.end_time, settings)
+                candidate_start = next_working_slot(schedule.end_time + buffer, settings)
                 break
 
         if not conflict:

@@ -1,6 +1,7 @@
 import imaplib
 import email
 from email.header import decode_header
+from email.utils import parsedate_to_datetime
 from dotenv import load_dotenv
 import os
 import base64
@@ -28,14 +29,12 @@ def fetch_unread_emails(limit=5):
         mail = connect_imap()
         mail.select("inbox")
 
-        from datetime import datetime, timedelta
         since_date = (datetime.now() - timedelta(days=1)).strftime("%d-%b-%Y")
         _, message_numbers = mail.search(None, f'(UNSEEN SINCE {since_date})')
 
         nums = message_numbers[0].split()
         nums = nums[-limit:]
 
-        # Skip known promotional domains before even fetching full email
         skip_domains = [
             'noreply@', 'no-reply@', 'newsletter@', 'mailer.',
             'notifications@', 'digest@', 'donotreply@',
@@ -55,6 +54,16 @@ def fetch_unread_emails(limit=5):
             subject_raw, encoding = decode_header(msg["Subject"])[0]
             subject = decode_str(subject_raw)
             sender = msg.get("From", "")
+
+            sender_tz = None
+            try:
+                date_str = msg.get("Date", "")
+                if date_str:
+                    parsed_date = parsedate_to_datetime(date_str)
+                    if parsed_date.tzinfo:
+                        sender_tz = str(parsed_date.tzinfo)
+            except Exception:
+                pass
 
             sender_lower = sender.lower()
             if any(domain in sender_lower for domain in skip_domains):
@@ -91,6 +100,7 @@ def fetch_unread_emails(limit=5):
                 "subject": subject,
                 "body": body,
                 "attachments": attachments,
+                "sender_tz": sender_tz
             })
 
             mail.store(num, "+FLAGS", "\\Seen")

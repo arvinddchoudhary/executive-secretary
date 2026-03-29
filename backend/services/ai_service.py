@@ -29,11 +29,14 @@ STRICT RULES:
 - Only create tasks for emails that require a real human business action: meetings, approvals, document reviews, follow-ups from real people
 - For meeting emails: extract the EXACT requested date and time if mentioned. If a specific time is mentioned (e.g. "meeting at 11am"), set requested_datetime to that value
 - meet_link: extract any Google Meet, Zoom, Teams link from the body, or null
+- Recurring: Detect if the sender is proposing a recurring schedule (e.g. "every Monday", "daily sync", "monthly review").
 
 Return ONLY this JSON, no markdown, no explanation:
 {{
   "summary": "2-3 sentence summary, or 'No action required' if promotional",
   "is_actionable": true or false,
+  "is_recurring": true or false,
+  "recurrence_pattern": "weekly or daily or monthly or null",
   "meet_link": "full URL or null",
   "requested_datetime": "ISO format datetime if specific time mentioned in email, else null",
   "tasks": [

@@ -39,6 +39,7 @@ class Email(Base):
     meet_link = Column(String(500), nullable=True)
     received_at = Column(DateTime, default=datetime.utcnow)
     processed = Column(Boolean, default=False)
+    sender_timezone = Column(String(100), nullable=True)
 
     tasks = relationship("Task", back_populates="email")
 
@@ -56,10 +57,11 @@ class Task(Base):
     requested_datetime = Column(DateTime, nullable=True)
     task_type = Column(String(50), default="other")
     created_at = Column(DateTime, default=datetime.utcnow)
-
     email = relationship("Email", back_populates="tasks")
     schedule = relationship("Schedule", back_populates="task", uselist=False)
     notifications = relationship("Notification", back_populates="task")
+    is_recurring = Column(Boolean, default=False)
+    recurrence_pattern = Column(String(50), nullable=True)
 
 
 class Schedule(Base):
@@ -100,6 +102,7 @@ class UserSettings(Base):
     lunch_start = Column(Integer, nullable=True)
     lunch_end = Column(Integer, nullable=True)
     slot_interval_minutes = Column(Integer, default=30)
+    buffer_minutes = Column(Integer, default=10)
 
     user = relationship("User", backref="settings")
 

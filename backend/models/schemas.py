@@ -111,6 +111,7 @@ class UserSettingsCreate(BaseModel):
     lunch_start: Optional[int] = None
     lunch_end: Optional[int] = None
     slot_interval_minutes: int = 30
+    buffer_minutes: int = 10
 
 class UserSettingsOut(BaseModel):
     id: int
@@ -121,6 +122,7 @@ class UserSettingsOut(BaseModel):
     lunch_start: Optional[int]
     lunch_end: Optional[int]
     slot_interval_minutes: int
+    buffer_minutes: int = 10
 
     class Config:
         from_attributes = True

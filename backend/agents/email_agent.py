@@ -5,8 +5,7 @@ from models.schemas import PriorityEnum
 from services.ai_service import process_email
 from datetime import datetime
 
-async def run_email_agent(sender: str, subject: str, body: str, db: AsyncSession, attachments: list = None):
-
+async def run_email_agent(sender: str, subject: str, body: str, db: AsyncSession, attachments: list = None, timezone: str = None):
     ai_result = process_email(sender, subject, body)
 
     if not ai_result.get("is_actionable", False) or not ai_result.get("tasks"):
@@ -21,7 +20,8 @@ async def run_email_agent(sender: str, subject: str, body: str, db: AsyncSession
         subject=subject,
         body=body,
         processed=False,
-        meet_link=ai_result.get("meet_link")
+        meet_link=ai_result.get("meet_link"),
+        sender_timezone=timezone
     )
     db.add(email_record)
     await db.commit()
@@ -71,7 +71,9 @@ async def run_email_agent(sender: str, subject: str, body: str, db: AsyncSession
             priority=PriorityEnum(priority_raw),
             estimated_minutes=task_data.get("estimated_minutes", 30),
             task_type=task_data.get("task_type", "other"),
-            requested_datetime=requested_dt
+            requested_datetime=requested_dt,
+            is_recurring=task_data.get("is_recurring", False),
+            recurrence_pattern=task_data.get("recurrence_pattern", None)
         )
         db.add(task)
         tasks_created.append(task)
